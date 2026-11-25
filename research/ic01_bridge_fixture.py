@@ -10,11 +10,14 @@ from icon4py.model.common.type_alias import vpfloat, wpfloat
 from icon4py.model.atmosphere.dycore.stencils.update_dynamical_exner_time_increment import update_dynamical_exner_time_increment
 from icon4py.tools import py2fgen
 
+def map_array(annotation, descriptor):
+    return lambda info, *, ffi: py2fgen.as_array(ffi, info)
+
 def array(dtype):
     return py2fgen.ArrayParamDescriptor(rank=1, dtype=dtype, memory_space=py2fgen.MemorySpace.HOST, is_optional=False)
 
-@py2fgen.export(param_descriptors={"z": array(py2fgen.FLOAT64)})
-def prepare_fixture(z):
+@py2fgen.export(annotation_mapping_hook=map_array, param_descriptors={"z": array(py2fgen.FLOAT64)})
+def prepare_fixture(z: np.ndarray):
     # Only the unrelated horizontal geometry and MPI machinery is replaced.
     # grid_init itself, vertical config, grid and stencil are unmodified.
     common.construct_icon_grid = lambda **kwargs: SimpleNamespace()
@@ -28,8 +31,8 @@ def prepare_fixture(z):
     a, _ = v.get_vct_a_and_vct_b(cfg, None)
     z[:] = a.asnumpy()
 
-@py2fgen.export(param_descriptors={"index": array(py2fgen.INT32), "output": array(py2fgen.FLOAT64)})
-def read_result(index, output):
+@py2fgen.export(annotation_mapping_hook=map_array, param_descriptors={"index": array(py2fgen.INT32), "output": array(py2fgen.FLOAT64)})
+def read_result(index: np.ndarray, output: np.ndarray):
     k = int(grid_wrapper.grid_state.vertical_grid.kstart_moist)
     index[0] = k
     initial = np.linspace(.25, .99, 90, dtype=wpfloat)[None,:]

@@ -1,0 +1,11 @@
+diff --git a/src/atm_dyn_iconam/mo_icon4py_interfaces.f90 b/src/atm_dyn_iconam/mo_icon4py_interfaces.f90
+--- a/src/atm_dyn_iconam/mo_icon4py_interfaces.f90
++++ b/src/atm_dyn_iconam/mo_icon4py_interfaces.f90
+@@ -28,2 +28,3 @@
+   USE mo_sleve_config,         ONLY: stretch_fac, min_lay_thckn, top_height, flat_height
++  USE mo_nonhydrostatic_config, ONLY: htop_moist_proc
+   USE mo_vertical_grid,        ONLY: nflat_gradp
+@@ -247,2 +248,3 @@
+     rayleigh_damping_height     = damp_height(jg), &
++    htop_moist_proc             = htop_moist_proc, &
+     mean_cell_area              = p_patch(jg)%geometry_info%mean_cell_area, &

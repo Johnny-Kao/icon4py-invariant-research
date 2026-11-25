@@ -26,14 +26,14 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq libopenmpi-dev openmpi-bin
-          uv sync --frozen --package icon4py-atmosphere-diffusion --package icon4py-atmosphere-dycore --package icon4py-tools --package icon4py-testing --group test --no-dev --python 3.12
+          uv sync --frozen --package icon4py --package icon4py-atmosphere-diffusion --package icon4py-atmosphere-dycore --package icon4py-tools --package icon4py-testing --group test --group lint --no-dev --python 3.12
       - name: Prepare and format official regression
         working-directory: candidate
         run: |
           cp ../evidence/research/ic01_native_test_grid_init.py bindings/tests/bindings/test_grid_init.py
-          uv run --group dev --frozen --isolated ruff format bindings/tests/bindings/test_grid_init.py
-          uv run --group dev --frozen --isolated ruff check bindings/src/icon4py/bindings/grid_wrapper.py bindings/tests/bindings/test_grid_init.py
-          uv run --group dev --frozen --isolated ruff format --check bindings/src/icon4py/bindings/grid_wrapper.py bindings/tests/bindings/test_grid_init.py
+          uv run --no-sync ruff format bindings/tests/bindings/test_grid_init.py
+          uv run --no-sync ruff check bindings/src/icon4py/bindings/grid_wrapper.py bindings/tests/bindings/test_grid_init.py
+          uv run --no-sync ruff format --check bindings/src/icon4py/bindings/grid_wrapper.py bindings/tests/bindings/test_grid_init.py
       - name: Regenerate references
         working-directory: candidate
         run: |

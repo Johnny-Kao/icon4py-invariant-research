@@ -1,0 +1,63 @@
+# ICON4Py - ICON inspired code in Python and GT4Py
+#
+# Copyright (c) 2022-2024, ETH Zurich and MeteoSwiss
+# All rights reserved.
+#
+# Please, refer to the LICENSE file in the root directory.
+# SPDX-License-Identifier: BSD-3-Clause
+from typing import Any
+
+import gt4py.next as gtx
+import numpy as np
+import pytest
+
+from icon4py.model.atmosphere.diffusion.stencils.apply_nabla2_to_vn_in_lateral_boundary import (
+    apply_nabla2_to_vn_in_lateral_boundary,
+)
+from icon4py.model.common import dimension as dims
+from icon4py.model.common.grid import base
+from icon4py.model.common.type_alias import wpfloat
+from icon4py.model.testing import stencil_tests
+
+
+def apply_nabla2_to_vn_in_lateral_boundary_numpy(
+    z_nabla2_e: np.array, area_edge: np.array, vn: np.array, fac_bdydiff_v
+) -> np.array:
+    area_edge = np.expand_dims(area_edge, axis=-1)
+    vn = vn + (z_nabla2_e * area_edge * fac_bdydiff_v)
+    return vn
+
+
+class TestApplyNabla2ToVnInLateralBoundary(stencil_tests.StencilTest):
+    PROGRAM = apply_nabla2_to_vn_in_lateral_boundary
+    OUTPUTS = ("vn",)
+
+    @stencil_tests.input_data_fixture
+    def input_data(data_alloc: stencil_tests.DataAllocationWrapper, grid: base.Grid):
+        fac_bdydiff_v = wpfloat("5.0")
+        z_nabla2_e = data_alloc.random_field(dims.EdgeDim, dims.KDim, dtype=wpfloat)
+        area_edge = data_alloc.random_field(dims.EdgeDim, dtype=wpfloat)
+        vn = data_alloc.random_field(dims.EdgeDim, dims.KDim, dtype=wpfloat)
+        return dict(
+            fac_bdydiff_v=fac_bdydiff_v,
+            z_nabla2_e=z_nabla2_e,
+            area_edge=area_edge,
+            vn=vn,
+            horizontal_start=0,
+            horizontal_end=gtx.int32(grid.num_edges),
+            vertical_start=0,
+            vertical_end=gtx.int32(grid.num_levels),
+        )
+
+    @stencil_tests.static_reference
+    def reference(
+        grid: base.Grid,
+        *,
+        z_nabla2_e: np.ndarray,
+        area_edge: np.ndarray,
+        vn: np.ndarray,
+        fac_bdydiff_v: np.ndarray,
+        **kwargs: Any,
+    ) -> dict:
+        vn = apply_nabla2_to_vn_in_lateral_boundary_numpy(z_nabla2_e, area_edge, vn, fac_bdydiff_v)
+        return dict(vn=vn)

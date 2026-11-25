@@ -1,0 +1,73 @@
+# ICON4Py - ICON inspired code in Python and GT4Py
+#
+# Copyright (c) 2022-2024, ETH Zurich and MeteoSwiss
+# All rights reserved.
+#
+# Please, refer to the LICENSE file in the root directory.
+# SPDX-License-Identifier: BSD-3-Clause
+from typing import Any
+
+import gt4py.next as gtx
+import numpy as np
+import pytest
+
+from icon4py.model.atmosphere.dycore.stencils.interpolate_vt_to_interface_edges import (
+    interpolate_vt_to_interface_edges,
+)
+from icon4py.model.common import dimension as dims, type_alias as ta
+from icon4py.model.common.grid import base
+from icon4py.model.common.old_states import utils as state_utils
+from icon4py.model.testing import stencil_tests
+
+
+def interpolate_vt_to_interface_edges_numpy(
+    vt: np.ndarray, wgtfac_e: np.ndarray, **kwargs: Any
+) -> np.ndarray:
+    nlev = vt.shape[1]
+    z_vt_ie = np.zeros((vt.shape[0], nlev + 1))
+    w = wgtfac_e[:, 1:nlev]
+    z_vt_ie[:, 1:nlev] = w * vt[:, 1:nlev] + (1.0 - w) * vt[:, : nlev - 1]
+    z_vt_ie[:, 0] = vt[:, 0]
+    return z_vt_ie
+
+
+class TestInterpolateVtToInterfaceEdges(stencil_tests.StencilTest):
+    PROGRAM = interpolate_vt_to_interface_edges
+    OUTPUTS = ("z_vt_ie",)
+
+    @stencil_tests.static_reference
+    def reference(
+        grid: base.Grid,
+        *,
+        wgtfac_e: np.ndarray,
+        vt: np.ndarray,
+        z_vt_ie: np.ndarray,
+        horizontal_start: gtx.int32,
+        horizontal_end: gtx.int32,
+        vertical_start: gtx.int32,
+        vertical_end: gtx.int32,
+        **kwargs: Any,
+    ) -> dict:
+        subset = (slice(horizontal_start, horizontal_end), slice(vertical_start, vertical_end))
+        z_vt_ie = z_vt_ie.copy()
+        z_vt_ie[subset] = interpolate_vt_to_interface_edges_numpy(vt, wgtfac_e)[subset]
+        return dict(z_vt_ie=z_vt_ie)
+
+    @stencil_tests.input_data_fixture
+    def input_data(
+        data_alloc: stencil_tests.DataAllocationWrapper, grid: base.Grid
+    ) -> dict[str, gtx.Field | state_utils.ScalarType]:
+        wgtfac_e = data_alloc.random_field(dims.EdgeDim, dims.KHalfDim, dtype=ta.vpfloat)
+        vt = data_alloc.random_field(dims.EdgeDim, dims.KDim, dtype=ta.vpfloat)
+
+        z_vt_ie = data_alloc.random_field(dims.EdgeDim, dims.KHalfDim, dtype=ta.vpfloat)
+
+        return dict(
+            wgtfac_e=wgtfac_e,
+            vt=vt,
+            z_vt_ie=z_vt_ie,
+            horizontal_start=0,
+            horizontal_end=gtx.int32(grid.num_edges),
+            vertical_start=1,
+            vertical_end=gtx.int32(grid.num_levels),
+        )

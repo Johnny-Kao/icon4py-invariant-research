@@ -1,0 +1,78 @@
+# ICON4Py - ICON inspired code in Python and GT4Py
+#
+# Copyright (c) 2022-2024, ETH Zurich and MeteoSwiss
+# All rights reserved.
+#
+# Please, refer to the LICENSE file in the root directory.
+# SPDX-License-Identifier: BSD-3-Clause
+
+from typing import Final
+
+import cftime  # type: ignore[import-untyped] # mypy cannot find the corresponding cftime type hints
+import xarray
+
+from icon4py.model.common.old_states import metadata
+
+
+#: from standard name table https://cfconventions.org/Data/cf-standard-names/current/build/cf-standard-name-table.html
+SLEVE_COORD_STANDARD_NAME: Final[str] = "atmosphere_sleve_coordinate"
+
+
+DEFAULT_CALENDAR: Final[str] = "proleptic_gregorian"
+DEFAULT_TIME_UNIT: Final[str] = "seconds since 1970-01-01 00:00:00"
+
+#: icon4py specific CF extensions:
+
+
+COARDS_T_POS: Final[int] = 0
+COARDS_Z_POS: Final[int] = 1
+HORIZONTAL_POS: Final[int] = 2
+"""
+CF conventions encourage to use the COARDS conventions for the order of the dimensions:
+    `T` (time),
+    `Z` (height or depth),
+    `Y` (latitude),
+    `X` (longitude).
+In the unstructured case `Y` and `X`  combine to the horizontal dimension.
+The axis labels live in ``common.old_states.metadata`` (``COARDS_*_COORDINATE_NAME``).
+"""
+
+
+def date2num(
+    date: cftime.datetime,
+    units: str = DEFAULT_TIME_UNIT,
+    calendar: str = DEFAULT_CALENDAR,
+) -> float:
+    """
+
+    Convert a datetime object to a number.
+
+    Convenience method that makes units and calendar optional and uses the default values.
+    """
+    return cftime.date2num(date, units=units, calendar=calendar)
+
+
+#: Names of the horizontal (unstructured) dimensions.
+HORIZONTAL_DIM_NAMES: Final[tuple[str, ...]] = ("cell", "edge", "vertex")
+
+
+def to_canonical_dim_order(data: xarray.DataArray) -> xarray.DataArray | None:
+    """Check for spatial dimensions being in canonical order ('T', 'Z', 'Y', 'X') and return them in this order.
+
+    A purely horizontal field (a single ``cell``/``edge``/``vertex`` dimension) is canonical
+    as it is; a one-dimensional field without a horizontal dimension, or a scalar, gives
+    ``None``.
+    """
+    dims = data.dims
+    if len(dims) >= 2:
+        if dims[0] in HORIZONTAL_DIM_NAMES and dims[1] in (
+            metadata.INTERFACE_LEVEL_HEIGHT_STANDARD_NAME,
+            "level",
+            "half_level",
+        ):
+            return data.transpose(dims[1], dims[0], *dims[2:], transpose_coords=True)
+        else:
+            return data
+    if len(dims) == 1 and dims[0] in HORIZONTAL_DIM_NAMES:
+        return data
+    return None

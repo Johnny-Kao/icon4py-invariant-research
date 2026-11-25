@@ -1,0 +1,49 @@
+# ICON4Py - ICON inspired code in Python and GT4Py
+#
+# Copyright (c) 2022-2024, ETH Zurich and MeteoSwiss
+# All rights reserved.
+#
+# Please, refer to the LICENSE file in the root directory.
+# SPDX-License-Identifier: BSD-3-Clause
+from icon4py.model.common.math import distance_array_ns
+from icon4py.model.common.utils import data_allocation as data_alloc
+
+
+def gnomonic_proj(
+    lon_c: data_alloc.NDArray,
+    lat_c: data_alloc.NDArray,
+    lon: data_alloc.NDArray,
+    lat: data_alloc.NDArray,
+    sphere_radius: float,
+) -> data_alloc.NDArray:
+    """
+    Compute gnomonic projection onto a tangent plane with origin at (lon_c, lat_c).
+
+    gnomonic_proj
+    Args:
+        lon_c: longitude center on tangent plane
+        lat_c: lattitude center on tangent plane
+        lon: longitude point to be projected
+        lat: lattitude point to be projected
+        sphere_radius: radius of the sphere
+    Returns:
+        x and y coordinates of the projected point on the tangent plane
+
+    Variables:
+        zk: scale factor perpendicular to the radius from the center of the map
+        cosc: cosine of the angular distance of the given point (lat,lon) from the center of projection
+    LITERATURE:
+        Map Projections: A Working Manual, Snyder, 1987, p. 165
+    TODO:
+        replace this with a suitable library call
+    """
+    array_ns = data_alloc.array_namespace(lon_c)
+    cosc = distance_array_ns.cos_central_angle(lon_center=lon_c, lat_center=lat_c, lon=lon, lat=lat)
+    zk = 1.0 / cosc
+
+    x = zk * array_ns.cos(lat) * array_ns.sin(lon - lon_c)
+    y = zk * (
+        array_ns.cos(lat_c) * array_ns.sin(lat)
+        - array_ns.sin(lat_c) * array_ns.cos(lat) * array_ns.cos(lon - lon_c)
+    )
+    return array_ns.column_stack((x, y)) * sphere_radius

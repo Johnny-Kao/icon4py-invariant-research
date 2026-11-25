@@ -1,0 +1,191 @@
+# ICON4Py - ICON inspired code in Python and GT4Py
+#
+# Copyright (c) 2022-2024, ETH Zurich and MeteoSwiss
+# All rights reserved.
+#
+# Please, refer to the LICENSE file in the root directory.
+# SPDX-License-Identifier: BSD-3-Clause
+
+import gt4py.next as gtx
+from gt4py.next import broadcast, minimum
+from gt4py.next.experimental import concat_where
+
+from icon4py.model.common import dimension as dims, field_type_aliases as fa
+from icon4py.model.common.math.smagorinsky import _en_smag_fac_for_zero_nshift
+from icon4py.model.common.type_alias import wpfloat
+
+
+@gtx.field_operator
+def _scale_k(field: fa.KField[wpfloat], factor: wpfloat) -> fa.KField[wpfloat]:
+    return field * factor
+
+
+@gtx.program
+def scale_k(field: fa.KField[wpfloat], factor: wpfloat, scaled_field: fa.KField[wpfloat]) -> None:
+    _scale_k(field, factor, out=scaled_field)
+
+
+@gtx.field_operator
+def _setup_smag_limit(diff_multfac_vn: fa.KField[wpfloat]) -> fa.KField[wpfloat]:
+    return wpfloat(0.125) - wpfloat(4.0) * diff_multfac_vn
+
+
+@gtx.field_operator
+def _setup_runtime_diff_multfac_vn(k4: wpfloat, dyn_substeps: wpfloat) -> fa.KField[wpfloat]:
+    con = wpfloat(1.0) / wpfloat(128.0)
+    dyn = k4 * dyn_substeps / wpfloat(3.0)
+    return broadcast(minimum(con, dyn), (dims.KDim,))
+
+
+@gtx.field_operator
+def _setup_initial_diff_multfac_vn(k4: wpfloat, hdiff_efdt_ratio: wpfloat) -> fa.KField[wpfloat]:
+    return broadcast(k4 / wpfloat(3.0) * hdiff_efdt_ratio, (dims.KDim,))
+
+
+@gtx.field_operator
+def _setup_fields_for_initial_step(
+    k4: wpfloat, hdiff_efdt_ratio: wpfloat
+) -> tuple[fa.KField[wpfloat], fa.KField[wpfloat]]:
+    diff_multfac_vn = _setup_initial_diff_multfac_vn(k4, hdiff_efdt_ratio)
+    smag_limit = _setup_smag_limit(diff_multfac_vn)
+    return diff_multfac_vn, smag_limit
+
+
+@gtx.program
+def setup_fields_for_initial_step(
+    k4: wpfloat,
+    hdiff_efdt_ratio: wpfloat,
+    diff_multfac_vn: fa.KField[wpfloat],
+    smag_limit: fa.KField[wpfloat],
+) -> None:
+    _setup_fields_for_initial_step(k4, hdiff_efdt_ratio, out=(diff_multfac_vn, smag_limit))
+
+
+@gtx.field_operator
+def _init_diffusion_local_fields_for_regular_timestep(  # noqa: PLR0917 [too-many-positional-arguments]
+    k4: wpfloat,
+    dyn_substeps: wpfloat,
+    hdiff_smag_fac: wpfloat,
+    hdiff_smag_fac2: wpfloat,
+    hdiff_smag_fac3: wpfloat,
+    hdiff_smag_fac4: wpfloat,
+    hdiff_smag_z: wpfloat,
+    hdiff_smag_z2: wpfloat,
+    hdiff_smag_z3: wpfloat,
+    hdiff_smag_z4: wpfloat,
+    vect_a: fa.KHalfField[wpfloat],
+) -> tuple[fa.KField[wpfloat], fa.KField[wpfloat], fa.KField[wpfloat]]:
+    diff_multfac_vn = _setup_runtime_diff_multfac_vn(k4, dyn_substeps)
+    smag_limit = _setup_smag_limit(diff_multfac_vn)
+    enh_smag_fac = _en_smag_fac_for_zero_nshift(
+        vect_a=vect_a,
+        hdiff_smag_fac=hdiff_smag_fac,
+        hdiff_smag_fac2=hdiff_smag_fac2,
+        hdiff_smag_fac3=hdiff_smag_fac3,
+        hdiff_smag_fac4=hdiff_smag_fac4,
+        hdiff_smag_z=hdiff_smag_z,
+        hdiff_smag_z2=hdiff_smag_z2,
+        hdiff_smag_z3=hdiff_smag_z3,
+        hdiff_smag_z4=hdiff_smag_z4,
+    )
+    return (
+        diff_multfac_vn,
+        smag_limit,
+        enh_smag_fac,
+    )
+
+
+@gtx.program
+def init_diffusion_local_fields_for_regular_timestep(  # noqa: PLR0917 [too-many-positional-arguments]
+    k4: wpfloat,
+    dyn_substeps: wpfloat,
+    hdiff_smag_fac: wpfloat,
+    hdiff_smag_fac2: wpfloat,
+    hdiff_smag_fac3: wpfloat,
+    hdiff_smag_fac4: wpfloat,
+    hdiff_smag_z: wpfloat,
+    hdiff_smag_z2: wpfloat,
+    hdiff_smag_z3: wpfloat,
+    hdiff_smag_z4: wpfloat,
+    vect_a: fa.KHalfField[wpfloat],
+    diff_multfac_vn: fa.KField[wpfloat],
+    smag_limit: fa.KField[wpfloat],
+    enh_smag_fac: fa.KField[wpfloat],
+) -> None:
+    _init_diffusion_local_fields_for_regular_timestep(
+        k4=k4,
+        dyn_substeps=dyn_substeps,
+        hdiff_smag_fac=hdiff_smag_fac,
+        hdiff_smag_fac2=hdiff_smag_fac2,
+        hdiff_smag_fac3=hdiff_smag_fac3,
+        hdiff_smag_fac4=hdiff_smag_fac4,
+        hdiff_smag_z=hdiff_smag_z,
+        hdiff_smag_z2=hdiff_smag_z2,
+        hdiff_smag_z3=hdiff_smag_z3,
+        hdiff_smag_z4=hdiff_smag_z4,
+        vect_a=vect_a,
+        out=(
+            diff_multfac_vn,
+            smag_limit,
+            enh_smag_fac,
+        ),
+    )
+
+
+@gtx.field_operator
+def _init_nabla2_factor_in_upper_damping_zone(
+    physical_heights: fa.KHalfField[wpfloat],
+    end_index_of_damping_layer: gtx.int32,
+    nshift: gtx.int32,
+    heights_nrd_shift: wpfloat,
+    heights_1: wpfloat,
+) -> fa.KHalfField[wpfloat]:
+    height_sliced = concat_where(
+        ((1 + nshift) <= dims.KHalfDim)
+        & (dims.KHalfDim < (nshift + end_index_of_damping_layer + 1)),
+        physical_heights,
+        wpfloat(0.0),
+    )
+    diff_multfac_n2w = (
+        wpfloat(1.0)
+        / wpfloat(12.0)
+        * ((height_sliced - heights_nrd_shift) / (heights_1 - heights_nrd_shift)) ** wpfloat("4")
+    )
+    return diff_multfac_n2w
+
+
+@gtx.program
+def init_nabla2_factor_in_upper_damping_zone(  # noqa: PLR0917 [too-many-positional-arguments]
+    physical_heights: fa.KHalfField[wpfloat],
+    diff_multfac_n2w: fa.KHalfField[wpfloat],
+    end_index_of_damping_layer: gtx.int32,
+    nshift: gtx.int32,
+    heights_nrd_shift: wpfloat,
+    heights_1: wpfloat,
+    vertical_start: gtx.int32,
+    vertical_end: gtx.int32,
+) -> None:
+    """
+    Calculate diff_multfac_n2w.
+
+    numpy version, since gt4py does not allow non-constant indexing into fields
+
+    Args
+        physcial_heights: vector of physical heights [m] of the height levels
+        k_field: field of k levels
+        end_index_of_damping_layer: index of the level where rayleigh damping starts
+        nshift: 0
+        heights_nrd_shift: physcial_heights at end_index_of_damping_layer + nshift + 1,
+        heights_1: physcial_heights at 1st level,
+        vertical_start: vertical lower bound,
+        vertical_end: vertical upper bound,
+    """
+    _init_nabla2_factor_in_upper_damping_zone(
+        physical_heights=physical_heights,
+        end_index_of_damping_layer=end_index_of_damping_layer,
+        nshift=nshift,
+        heights_nrd_shift=heights_nrd_shift,
+        heights_1=heights_1,
+        out=diff_multfac_n2w,
+        domain={dims.KHalfDim: (vertical_start, vertical_end)},
+    )

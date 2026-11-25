@@ -1,0 +1,79 @@
+# ICON4Py - ICON inspired code in Python and GT4Py
+#
+# Copyright (c) 2022-2024, ETH Zurich and MeteoSwiss
+# All rights reserved.
+#
+# Please, refer to the LICENSE file in the root directory.
+# SPDX-License-Identifier: BSD-3-Clause
+from typing import Any
+
+import gt4py.next as gtx
+import numpy as np
+import pytest
+
+from icon4py.model.atmosphere.dycore.stencils.compute_mass_flux import compute_mass_flux
+from icon4py.model.common import dimension as dims
+from icon4py.model.common.grid import base
+from icon4py.model.common.old_states import utils as state_utils
+from icon4py.model.common.type_alias import vpfloat, wpfloat
+from icon4py.model.testing import stencil_tests
+
+
+def compute_mass_flux_numpy(
+    z_rho_e: np.ndarray,
+    z_vn_avg: np.ndarray,
+    ddqz_z_full_e: np.ndarray,
+    z_theta_v_e: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    mass_fl_e = z_rho_e * z_vn_avg * ddqz_z_full_e
+    z_theta_v_fl_e = mass_fl_e * z_theta_v_e
+
+    return mass_fl_e, z_theta_v_fl_e
+
+
+class TestComputeMassFlux(stencil_tests.StencilTest):
+    PROGRAM = compute_mass_flux
+    OUTPUTS = ("mass_fl_e", "z_theta_v_fl_e")
+
+    @stencil_tests.static_reference
+    def reference(
+        grid: base.Grid,
+        *,
+        z_rho_e: np.ndarray,
+        z_vn_avg: np.ndarray,
+        ddqz_z_full_e: np.ndarray,
+        z_theta_v_e: np.ndarray,
+        **kwargs: Any,
+    ) -> dict:
+        mass_fl_e, z_theta_v_fl_e = compute_mass_flux_numpy(
+            z_rho_e,
+            z_vn_avg,
+            ddqz_z_full_e,
+            z_theta_v_e,
+        )
+
+        return dict(mass_fl_e=mass_fl_e, z_theta_v_fl_e=z_theta_v_fl_e)
+
+    @stencil_tests.input_data_fixture
+    def input_data(
+        data_alloc: stencil_tests.DataAllocationWrapper, grid: base.Grid
+    ) -> dict[str, gtx.Field | state_utils.ScalarType]:
+        z_rho_e = data_alloc.random_field(dims.EdgeDim, dims.KDim, dtype=wpfloat)
+        z_vn_avg = data_alloc.random_field(dims.EdgeDim, dims.KDim, dtype=wpfloat)
+        ddqz_z_full_e = data_alloc.random_field(dims.EdgeDim, dims.KDim, dtype=vpfloat)
+        mass_fl_e = data_alloc.random_field(dims.EdgeDim, dims.KDim, dtype=wpfloat)
+        z_theta_v_e = data_alloc.random_field(dims.EdgeDim, dims.KDim, dtype=wpfloat)
+        z_theta_v_fl_e = data_alloc.zero_field(dims.EdgeDim, dims.KDim, dtype=wpfloat)
+
+        return dict(
+            z_rho_e=z_rho_e,
+            z_vn_avg=z_vn_avg,
+            ddqz_z_full_e=ddqz_z_full_e,
+            z_theta_v_e=z_theta_v_e,
+            mass_fl_e=mass_fl_e,
+            z_theta_v_fl_e=z_theta_v_fl_e,
+            horizontal_start=0,
+            horizontal_end=gtx.int32(grid.num_edges),
+            vertical_start=0,
+            vertical_end=gtx.int32(grid.num_levels),
+        )

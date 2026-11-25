@@ -1,0 +1,39 @@
+# ICON4Py - ICON inspired code in Python and GT4Py
+#
+# Copyright (c) 2022-2024, ETH Zurich and MeteoSwiss
+# All rights reserved.
+#
+# Please, refer to the LICENSE file in the root directory.
+# SPDX-License-Identifier: BSD-3-Clause
+import gt4py.next as gtx
+import numpy as np
+import pytest
+
+from icon4py.model.atmosphere.subgrid_scale_physics.muphys.core.thermo import dqsatdT_rho
+from icon4py.model.common import dimension as dims
+from icon4py.model.common.grid import base
+from icon4py.model.common.type_alias import wpfloat
+from icon4py.model.testing import stencil_tests
+
+
+class TestQsatRho(stencil_tests.StencilTest):
+    PROGRAM = dqsatdT_rho
+    OUTPUTS = ("derivative",)
+
+    @stencil_tests.static_reference
+    def reference(
+        grid: base.Grid,
+        *,
+        qs: np.ndarray,
+        t: np.ndarray,
+        **kwargs,
+    ) -> dict:
+        return dict(derivative=np.full(t.shape, 0.00030825070286492049))
+
+    @stencil_tests.input_data_fixture
+    def input_data(data_alloc: stencil_tests.DataAllocationWrapper):
+        return dict(
+            qs=data_alloc.constant_field(0.00448941, dims.CellDim, dims.KDim, dtype=wpfloat),
+            t=data_alloc.constant_field(273.909, dims.CellDim, dims.KDim, dtype=wpfloat),
+            derivative=data_alloc.zero_field(dims.CellDim, dims.KDim, dtype=wpfloat),
+        )

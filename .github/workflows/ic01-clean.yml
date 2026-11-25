@@ -50,3 +50,11 @@ jobs:
           path: |
             candidate/bindings/tests/bindings/test_grid_init.py
             candidate/bindings/tests/bindings/references/icon4py_bindings.*
+  icon-caller:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ic01/icon
+      - run: python3 test/ic01/check_caller.py

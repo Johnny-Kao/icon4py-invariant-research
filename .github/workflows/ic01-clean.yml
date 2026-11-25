@@ -1,0 +1,52 @@
+name: IC-01 clean candidate
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}/candidate/bindings/src
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: evidence
+      - uses: actions/checkout@v4
+        with:
+          ref: ic01/icon4py
+          path: candidate
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install uv
+      - name: Dependencies
+        working-directory: candidate
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libopenmpi-dev openmpi-bin
+          uv sync --frozen --package icon4py-atmosphere-diffusion --package icon4py-atmosphere-dycore --package icon4py-tools --package icon4py-testing --group test --no-dev --python 3.12
+      - name: Prepare and format official regression
+        working-directory: candidate
+        run: |
+          cp ../evidence/research/ic01_native_test_grid_init.py bindings/tests/bindings/test_grid_init.py
+          uv run --group dev --frozen --isolated ruff format bindings/tests/bindings/test_grid_init.py
+          uv run --group dev --frozen --isolated ruff check bindings/src/icon4py/bindings/grid_wrapper.py bindings/tests/bindings/test_grid_init.py
+          uv run --group dev --frozen --isolated ruff format --check bindings/src/icon4py/bindings/grid_wrapper.py bindings/tests/bindings/test_grid_init.py
+      - name: Regenerate references
+        working-directory: candidate
+        run: |
+          p=bindings/tests/bindings/references/icon4py_bindings
+          uv run --no-sync python -m icon4py.bindings.all_bindings --output-py "$p.py" --output-f90 "$p.f90" --output-h "$p.h"
+      - name: Native pytest and codegen reference test
+        working-directory: candidate
+        run: |
+          uv run --no-sync pytest -q --datatest-skip bindings/tests/bindings/test_grid_init.py bindings/tests/bindings/test_codegen_references.py bindings/tests/bindings/test_icon4py_export.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clean-test-files
+          path: |
+            candidate/bindings/tests/bindings/test_grid_init.py
+            candidate/bindings/tests/bindings/references/icon4py_bindings.*

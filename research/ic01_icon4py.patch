@@ -1,0 +1,11 @@
+diff --git a/bindings/src/icon4py/bindings/grid_wrapper.py b/bindings/src/icon4py/bindings/grid_wrapper.py
+--- a/bindings/src/icon4py/bindings/grid_wrapper.py
++++ b/bindings/src/icon4py/bindings/grid_wrapper.py
+@@ -114,2 +114,3 @@
+     rayleigh_damping_height: gtx.float64,
++    htop_moist_proc: gtx.float64,
+     mean_cell_area: gtx.float64,
+@@ -194,2 +195,3 @@
+         rayleigh_damping_height=rayleigh_damping_height,
++        htop_moist_proc=htop_moist_proc,
+         flat_height=flat_height,

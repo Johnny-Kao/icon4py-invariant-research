@@ -75,9 +75,9 @@ extern int grid_init_wrapper(
     double *primal_normal_y, int primal_normal_y_size_0, double *vct_a,
     int vct_a_size_0, double lowest_layer_thickness, double model_top_height,
     double stretch_factor, double flat_height, double rayleigh_damping_height,
-    double mean_cell_area, int comm_id, int num_vertices, int num_cells,
-    int num_edges, int vertical_size, unsigned char limited_area, int backend,
-    unsigned char on_gpu);
+    double htop_moist_proc, double mean_cell_area, int comm_id,
+    int num_vertices, int num_cells, int num_edges, int vertical_size,
+    unsigned char limited_area, int backend, unsigned char on_gpu);
 extern int solve_nh_init_wrapper(
     double *c_lin_e, int c_lin_e_size_0, int c_lin_e_size_1, double *c_intp,
     int c_intp_size_0, int c_intp_size_1, double *e_flx_avg,

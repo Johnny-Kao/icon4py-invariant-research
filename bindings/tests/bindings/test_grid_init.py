@@ -108,6 +108,7 @@ def _grid_init_kwargs(grid_savepoint, experiment, *, parallel_arrays, comm_id):
         "stretch_factor": cfg.stretch_factor,
         "flat_height": cfg.flat_height,
         "rayleigh_damping_height": cfg.rayleigh_damping_height,
+        "htop_moist_proc": cfg.htop_moist_proc,
         "mean_cell_area": grid_savepoint.mean_cell_area(),
         **parallel_arrays,
         "comm_id": comm_id,
@@ -174,3 +175,88 @@ def test_grid_init_calls_decomposition_helpers_with_kwargs(grid_savepoint, exper
 
     mock_pgdi.assert_called_once()
     assert mock_pgdi.call_args.args == ()
+
+
+@pytest.mark.parametrize(("height", "expected"), [(22500.0, 2), (30000.0, 1), (15000.0, 3)])
+def test_grid_init_preserves_moist_physics_height(height, expected):
+    int_array = test_utils.array_to_array_info(np.ones(2, dtype=np.int32))
+    connectivity = test_utils.array_to_array_info(np.ones((2, 2), dtype=np.int32))
+    owner_mask = test_utils.array_to_array_info(np.ones(2, dtype=np.bool_))
+    geometry = test_utils.array_to_array_info(np.ones(2, dtype=np.float64))
+    normals = test_utils.array_to_array_info(np.ones((2, 2), dtype=np.float64))
+    vct_a = test_utils.array_to_array_info(np.array([40000.0, 30000.0, 20000.0, 10000.0, 0.0]))
+    kwargs = {
+        **dict.fromkeys(
+            (
+                "cell_starts",
+                "cell_ends",
+                "vertex_starts",
+                "vertex_ends",
+                "edge_starts",
+                "edge_ends",
+                "c_glb_index",
+                "e_glb_index",
+                "v_glb_index",
+            ),
+            int_array,
+        ),
+        **dict.fromkeys(
+            ("c2e", "e2c", "c2e2c", "e2c2e", "e2v", "v2e", "v2c", "e2c2v", "c2v"),
+            connectivity,
+        ),
+        **dict.fromkeys(("c_owner_mask", "e_owner_mask", "v_owner_mask"), owner_mask),
+        **dict.fromkeys(
+            (
+                "tangent_orientation",
+                "inverse_primal_edge_lengths",
+                "inv_dual_edge_length",
+                "inv_vert_vert_length",
+                "edge_areas",
+                "f_e",
+                "cell_center_lat",
+                "cell_center_lon",
+                "cell_areas",
+                "edge_center_lat",
+                "edge_center_lon",
+                "primal_normal_x",
+                "primal_normal_y",
+            ),
+            geometry,
+        ),
+        **dict.fromkeys(
+            (
+                "primal_normal_vert_x",
+                "primal_normal_vert_y",
+                "dual_normal_vert_x",
+                "dual_normal_vert_y",
+                "primal_normal_cell_x",
+                "primal_normal_cell_y",
+                "dual_normal_cell_x",
+                "dual_normal_cell_y",
+            ),
+            normals,
+        ),
+        "vct_a": vct_a,
+        "lowest_layer_thickness": 10000.0,
+        "model_top_height": 40000.0,
+        "stretch_factor": 1.0,
+        "flat_height": 10000.0,
+        "rayleigh_damping_height": 30000.0,
+        "htop_moist_proc": height,
+        "mean_cell_area": 1.0,
+        "comm_id": None,
+        "num_vertices": 2,
+        "num_cells": 2,
+        "num_edges": 2,
+        "vertical_size": 4,
+        "limited_area": False,
+        "backend": wrapper_common.BackendIntEnum.DEFAULT,
+    }
+    # Horizontal connectivity is independent of the vertical grid configuration.
+    with (
+        mock.patch.object(wrapper_common, "construct_icon_grid", autospec=True),
+        mock.patch.object(grid_wrapper, "grid_state", None),
+    ):
+        grid_wrapper.grid_init(cffi.FFI(), perf_counters=None, **kwargs)
+        assert grid_wrapper.grid_state.vertical_grid.config.htop_moist_proc == height
+        assert grid_wrapper.grid_state.vertical_grid.kstart_moist == expected

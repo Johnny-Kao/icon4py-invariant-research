@@ -417,6 +417,7 @@ module icon4py_bindings
                                  stretch_factor, &
                                  flat_height, &
                                  rayleigh_damping_height, &
+                                 htop_moist_proc, &
                                  mean_cell_area, &
                                  comm_id, &
                                  num_vertices, &
@@ -644,6 +645,8 @@ module icon4py_bindings
          real(c_double), value, target :: flat_height
 
          real(c_double), value, target :: rayleigh_damping_height
+
+         real(c_double), value, target :: htop_moist_proc
 
          real(c_double), value, target :: mean_cell_area
 
@@ -2094,6 +2097,7 @@ contains
                         stretch_factor, &
                         flat_height, &
                         rayleigh_damping_height, &
+                        htop_moist_proc, &
                         mean_cell_area, &
                         comm_id, &
                         num_vertices, &
@@ -2200,6 +2204,8 @@ contains
       real(c_double), value, target :: flat_height
 
       real(c_double), value, target :: rayleigh_damping_height
+
+      real(c_double), value, target :: htop_moist_proc
 
       real(c_double), value, target :: mean_cell_area
 
@@ -2591,6 +2597,7 @@ contains
                              stretch_factor=stretch_factor, &
                              flat_height=flat_height, &
                              rayleigh_damping_height=rayleigh_damping_height, &
+                             htop_moist_proc=htop_moist_proc, &
                              mean_cell_area=mean_cell_area, &
                              comm_id=comm_id, &
                              num_vertices=num_vertices, &

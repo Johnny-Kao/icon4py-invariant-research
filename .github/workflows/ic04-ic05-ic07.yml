@@ -1,0 +1,29 @@
+name: IC-04 IC-05 IC-07 focused checks
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dycore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install uv
+      - run: uv sync --frozen --package icon4py-atmosphere-dycore --no-dev --python 3.12
+      - run: uv run --no-sync python research/check_ic04_ic07.py
+  mpi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update -qq && sudo apt-get install -y libopenmpi-dev openmpi-bin libboost-dev
+      - run: python -m pip install uv
+      - run: uv sync --frozen --package icon4py-common --extra distributed --no-dev --python 3.12
+      - run: mpirun -np 2 .venv/bin/python research/check_ic05_mpi.py

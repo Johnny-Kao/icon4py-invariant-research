@@ -13,7 +13,7 @@ MODULE mo_icon4py_interfaces
        &                             divdamp_fac, divdamp_fac2, divdamp_fac3, divdamp_fac4, &
        &                             divdamp_z, divdamp_z2, divdamp_z3, divdamp_z4, &
        &                             divdamp_type, damp_height, rayleigh_type, &
-       &                             igradp_method, iadv_rhotheta, lextra_diffu
+       &                             igradp_method, iadv_rhotheta, lextra_diffu, htop_moist_proc
   USE mo_parallel_config,      ONLY: nproma
   USE mo_initicon_config,      ONLY: init_mode, iau_wgt_dyn, is_iau_active
   USE mo_diffusion_config,     ONLY: diffusion_config
@@ -245,6 +245,7 @@ MODULE mo_icon4py_interfaces
     stretch_factor              = stretch_fac, &
     flat_height                 = flat_height, &
     rayleigh_damping_height     = damp_height(jg), &
+    htop_moist_proc             = htop_moist_proc, &
     mean_cell_area              = p_patch(jg)%geometry_info%mean_cell_area, &
     comm_id                     = p_comm, &
     num_vertices                = p_patch(jg)%n_patch_verts, &

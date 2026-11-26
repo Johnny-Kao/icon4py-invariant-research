@@ -10,7 +10,7 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}/candidate/bindings/src
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ic01/icon4py
           path: candidate
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ic01/icon
       - run: python3 test/ic01/check_caller.py
